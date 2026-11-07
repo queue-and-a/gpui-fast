@@ -338,6 +338,7 @@ impl PrepaintStateIndex {
                 .line_layout_index
                 .shifted(&from.line_layout_index, &to.line_layout_index),
             fast_a11y_index: self.fast_a11y_index - from.fast_a11y_index + to.fast_a11y_index,
+            observed: self.observed.shifted(&from.observed, &to.observed),
         }
     }
 }
@@ -354,8 +355,10 @@ impl PartialEq for PrepaintStateIndex {
             accessed_element_states_index,
             line_layout_index,
             fast_a11y_index,
+            observed,
         } = self;
         *fast_a11y_index == other.fast_a11y_index
+            && observed.node_count() == other.observed.node_count()
             && *hitboxes_index == other.hitboxes_index
             && *tooltips_index == other.tooltips_index
             && *deferred_draws_index == other.deferred_draws_index
@@ -1846,6 +1849,38 @@ pub(crate) fn request_view_layout<V: View>(
     (layout_id, ViewLayoutState(layout))
 }
 
+/// Tells the frame's observers how the view came to be drawn: replayed from
+/// last frame, or built, and why.
+fn note_view_drawn(
+    entity_id: EntityId,
+    global_id: Option<&GlobalElementId>,
+    cached: bool,
+    prepaint: &ViewPrepaint,
+    window: &mut Window,
+) {
+    use crate::{ViewDrawOutcome, ViewRenderCause};
+    let outcome = match prepaint {
+        ViewPrepaint::Reused(_) | ViewPrepaint::Spliced(_) => ViewDrawOutcome::Reused,
+        ViewPrepaint::Built { .. } | ViewPrepaint::Prebuilt(_) => {
+            ViewDrawOutcome::Rendered(if !cached && !window.retained_state.view_retention {
+                ViewRenderCause::Uncached
+            } else if window.refreshing && window.next_frame.observed.window_refresh() {
+                ViewRenderCause::Refresh
+            } else if window.dirty_views.contains(&entity_id) {
+                ViewRenderCause::Notified
+            } else if global_id.is_none_or(|id| window.rendered_frame.retained.find(id).is_none()) {
+                ViewRenderCause::FirstDraw
+            } else {
+                ViewRenderCause::LayoutChanged
+            })
+        }
+    };
+    window
+        .next_frame
+        .observed
+        .view_drawn(entity_id, outcome, &window.rendered_frame.observed);
+}
+
 /// Attributes the time since `start` to the view's type in the window's
 /// profiler, as upstream's `ViewElement` does for views with an entity.
 #[cfg(feature = "profiler")]
@@ -1877,6 +1912,15 @@ pub(crate) fn prepaint_view<V: View>(
     #[cfg(feature = "profiler")]
     let start = view.entity_id.map(|_| window.window_profiler.begin_view());
     let prepaint = view.prepaint_view_inner(global_id, bounds, layout, window, cx);
+    if let Some(entity_id) = view.entity_id {
+        note_view_drawn(
+            entity_id,
+            global_id,
+            view.cached_style.is_some(),
+            &prepaint,
+            window,
+        );
+    }
     #[cfg(feature = "profiler")]
     end_view_profile(view, start, crate::profiler::ViewPhase::Prepaint, window);
     ViewPrepaintState(prepaint)

@@ -788,6 +788,11 @@ impl Window {
         dispatch: &mut OpenDispatchCopy,
     ) -> Vec<usize> {
         crate::fast::a11y::reuse_prepaint(self, &range);
+        self.next_frame.observed.reuse(
+            &self.rendered_frame.observed,
+            &range.start.observed,
+            &range.end.observed,
+        );
         self.next_frame.hitboxes.extend(
             self.rendered_frame.hitboxes[range.start.hitboxes_index..range.end.hitboxes_index]
                 .iter()
@@ -823,6 +828,7 @@ impl Window {
             self.next_frame.deferred_draws.push(DeferredDraw {
                 current_view: deferred_draw.current_view,
                 parent_node: dispatch.refresh(deferred_draw.parent_node),
+                observed_parent: deferred_draw.observed_parent.clone(),
                 element_id_stack: deferred_draw.element_id_stack.clone(),
                 text_style_stack: deferred_draw.text_style_stack.clone(),
                 content_mask: deferred_draw.content_mask,

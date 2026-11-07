@@ -750,7 +750,7 @@ fn foretold_hit_test(
     if crate::fast::layers::hover_freeze::frozen(window) {
         return ForetoldHitTest::default();
     }
-    let position = window.mouse_position;
+    let position = window.mouse_position();
     let scale_factor = window.scale_factor();
     let hitboxes = &window.rendered_frame.hitboxes;
     let rows_at = rows_at.start.min(hitboxes.len())..rows_at.end.min(hitboxes.len());

@@ -37,6 +37,7 @@ mod element;
 mod elements;
 mod executor;
 mod fast;
+mod frame_observer;
 mod geometry;
 mod gestures;
 mod global;
@@ -137,6 +138,7 @@ pub use fast::layers::scene::{
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use fast::stats::LayoutStats;
+pub use frame_observer::*;
 pub use geometry::*;
 pub use gestures::*;
 pub use global::*;

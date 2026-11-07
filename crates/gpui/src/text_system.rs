@@ -600,7 +600,9 @@ impl TextSystem {
             if let Some(font_id) = lookup_font(font) {
                 Some(font_id)
             } else {
-                let font_id = self.fallback_font_stack.iter().find_map(lookup_font);
+                let font_id = self.fallback_font_stack.iter().find_map(|fallback| {
+                    lookup_font(&fallback_with_requested_traits(fallback, font))
+                });
                 if let Some(font_id) = font_id {
                     font_ids.with_upgraded(|font_ids| {
                         font_ids.insert(font.clone(), CachedFont::Fallback(font_id));
@@ -622,6 +624,34 @@ impl TextSystem {
                     .join(", ")
             );
         })
+    }
+}
+
+fn fallback_with_requested_traits(fallback: &Font, requested: &Font) -> Font {
+    Font {
+        family: fallback.family.clone(),
+        features: requested.features.clone(),
+        fallbacks: fallback.fallbacks.clone(),
+        weight: requested.weight,
+        style: requested.style,
+    }
+}
+
+#[cfg(test)]
+mod fallback_tests {
+    use super::{FontStyle, FontWeight, fallback_with_requested_traits, font};
+
+    #[test]
+    fn fallback_replaces_only_the_unavailable_family() {
+        let fallback = font("Available Sans");
+        let requested = font("Unavailable Sans").bold().italic();
+
+        let resolved = fallback_with_requested_traits(&fallback, &requested);
+
+        assert_eq!(resolved.family.as_ref(), "Available Sans");
+        assert_eq!(resolved.weight, FontWeight::BOLD);
+        assert_eq!(resolved.style, FontStyle::Italic);
+        assert_eq!(resolved.features, requested.features);
     }
 }
 
