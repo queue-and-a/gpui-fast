@@ -1513,7 +1513,7 @@ fn native_target(window: &Window, scroll: bool) -> Option<CompositionSurfaceId> 
             return Some(captured);
         }
     }
-    let point = window.mouse_position();
+    let point = window.pointer_position();
     for surface in state.input_order.iter().rev().copied() {
         if !visible_surface(&state, surface) {
             continue;

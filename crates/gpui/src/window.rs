@@ -3835,6 +3835,11 @@ impl Window {
             .is_action_available(action, node_id)
     }
 
+    /// The position of the mouse, without noting that it was read.
+    pub(crate) fn pointer_position(&self) -> Point<Pixels> {
+        self.pointer.position
+    }
+
     /// The position of the mouse relative to the window.
     pub fn mouse_position(&self) -> Point<Pixels> {
         crate::fast::dependencies::read_pointer(self);
@@ -4252,7 +4257,7 @@ impl Window {
 
         crate::fast::stats::FramePhaseTimes::end_prepaint(&mut self.fast_layout.phase_times);
         crate::fast::composition::finish_input(self);
-        self.mouse_hit_test = self.next_frame.hit_test(self.mouse_position());
+        self.mouse_hit_test = self.next_frame.hit_test(self.pointer_position());
 
         frame_observers = crate::frame_observer::live_observers(&mut self.frame_observers);
 
@@ -6223,6 +6228,7 @@ impl Window {
         source: InputSource,
         cx: &mut App,
     ) -> DispatchEventResult {
+        let ambient = crate::fast::dependencies::AmbientInput::of(self);
         if let PlatformInput::MouseMove(mouse_move) = &event
             && !self.pointer.move_to(mouse_move.position, source)
         {
@@ -6248,7 +6254,6 @@ impl Window {
             self.refresh();
         }
 
-        let ambient = crate::fast::dependencies::AmbientInput::of(self);
         // Handlers may set this to false by calling `stop_propagation`.
         cx.propagate_event = true;
         // Handlers may set this to true by calling `prevent_default`.

@@ -161,7 +161,7 @@ impl Default for HoverFreeze {
 /// Notes a wheel event at the pointer's position, and draws the window again
 /// once hover is no longer held still for it.
 pub(crate) fn note_wheel(window: &mut Window, cx: &mut App) {
-    let position = window.mouse_position();
+    let position = window.pointer_position();
     let freeze = &mut window.fast_layers.hover_freeze;
     if !freeze.enabled {
         return;
@@ -190,7 +190,7 @@ pub(crate) fn frozen(window: &Window) -> bool {
         .hover_freeze
         .last_wheel
         .is_some_and(|(at, position)| {
-            at.elapsed() < HOVER_FREEZE && position == window.mouse_position()
+            at.elapsed() < HOVER_FREEZE && position == window.pointer_position()
         })
 }
 
